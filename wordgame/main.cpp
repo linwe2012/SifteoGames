@@ -8,14 +8,22 @@ using namespace Sifteo;
 
 #define MAX_CUBES CUBE_ALLOCATION
 
-#define MAX_PHRASES 2
-#define MAX_IMAGE2x2 2
+#define MAX_PHRASES 3
+#define MAX_IMAGE2x2 3
 
 static AssetSlot MainSlot = AssetSlot::allocate()
     .bootstrap(GameAssets);
 
 static AssetSlot ASlot = AssetSlot::allocate()
     .bootstrap(WordAssets);
+
+static AssetSlot BSlot = AssetSlot::allocate()
+    .bootstrap(CloseScene1);
+
+    
+static AssetSlot CSlot = AssetSlot::allocate()
+    .bootstrap(CloseScene2);
+
 
 static Metadata M = Metadata()
     .title("WordGame")
@@ -73,6 +81,31 @@ public:
         res.x = a.x * c + b.x * (1-c);
         res.y = a.y * c + b.y * (1-c);
         return res;
+    }
+
+    void DisplayWinning(const Sifteo::PinnedAssetImage& im)
+    {
+        for(int i = 0; i < alive_cubes.count(); ++i)
+        {
+            int id = alive_cubes[i];
+            vid[id].sprites[1].setImage(im);
+            
+        }
+        
+    }
+
+    void PrepareDisplayWinning()
+    {
+        for(int i = 0; i < alive_cubes.count(); ++i)
+        {
+            int id = alive_cubes[i];
+
+            vid[id].sprites[1].setWidth(128);
+            vid[id].sprites[1].setHeight(128);
+            vid[id].sprites[1].move(vec(0, 0));
+            vid[id].sprites[0].move(vec(-128, -128));
+        }
+        
     }
 
     void install()
@@ -177,6 +210,11 @@ public:
                     vid[id].sprites[0].setWidth(128);
                     vid[id].sprites[0].move(vec(0, 0));
                     vid[id].sprites[0].setImage(assets[text]);
+                }
+                else{
+                    
+                vid[id].sprites[0].move(vec(-128, -128));
+                vid[id].sprites[1].move(vec(-128, -128));
                 }
             }
         }
@@ -352,9 +390,9 @@ struct Manager
                         || (expected[i].left == top[i].left))
                     && (expected[i].right == -1  // 要么方块右边的积木应该是空的, 那么任何方块(比如多余的方块) 也判定是对的
                         || (expected[i].right == top[i].right))
-                    && (expected[i].top == -1  // 要么方块右边的积木应该是空的, 那么任何方块(比如多余的方块) 也判定是对的
+                    && (expected[i].top == -1  // 要么方块上边的积木应该是空的, 那么任何方块(比如多余的方块) 也判定是对的
                         || (expected[i].top == top[i].top))
-                    &&  (expected[i].down == -1  // 要么方块右边的积木应该是空的, 那么任何方块(比如多余的方块) 也判定是对的
+                    &&  (expected[i].down == -1  // 要么方块下边的积木应该是空的, 那么任何方块(比如多余的方块) 也判定是对的
                         || (expected[i].down == top[i].down))
                     ){
                         
@@ -610,11 +648,18 @@ V(GXYTQL)
 
 #define INERVEL 10
 
+
+
 void main()
 {
     AudioTracker::play(Music);
 
     static Word sensors;
+    const Sifteo::AssetAudio* Im2x2Audio[] = {
+        &Sound2x2_0,
+        &Sound2x2_1,
+        &Sound2x2_3,
+    };
 
     memset((uint8_t*)&top, 0, sizeof(top));
 
@@ -640,10 +685,50 @@ void main()
     int faild = 0;
     int loop_cnt = 0;
 
+    int winning = 0;
+    int winning_pause = 0;
+
+
     while (1)
     {
-        if(man.TestEqual() || (faild && loop_cnt == INERVEL))
+        if(winning && winning <= 41)
         {
+            winning_pause = winning_pause - 1;
+            if(winning_pause > 0){
+
+            }
+            else{
+                if(winning <= 16)
+                {
+                    sensors.DisplayWinning(ImageClose1[winning - 1]);
+                }
+                else if(winning <= 32)
+                {
+                    sensors.DisplayWinning(ImageClose2[winning - 17]);
+                }
+                else if(winning == 40)
+                {
+                    sensors.DisplayWinning(ImageClose3[winning - 33]);
+                    winning_pause = 40;
+                }
+                else if(winning == 41)
+                {
+                    // LOG("Done");
+                }
+                else{
+                    sensors.DisplayWinning(ImageClose3[winning - 33]);
+                }
+                winning = winning + 1;
+                if(winning_pause == 0)
+                {
+                    winning_pause = 5;
+                }
+            }
+            
+        }
+        else if(winning > 41)
+        {
+            winning = 0;
             if(cnt < MAX_PHRASES)
             {
                 LOG("Refreshing Words\n");
@@ -655,13 +740,24 @@ void main()
             {
                 LOG("Refreshing Images\n");
                 word_mode = WM_Image2x2;
-                faild = man.ResetNxN(cnt - MAX_PHRASES, 2, 2);
+                int n = cnt - MAX_PHRASES;
+
+                faild = man.ResetNxN(n, 2, 2);
                 sensors.InitBackground(1);
+                Sifteo::AudioChannel(0).play(*Im2x2Audio[n]);
+                AudioTracker::stop();
             }
 
             ++cnt;
             loop_cnt = (loop_cnt+1) % (INERVEL+1);
         }
+        else if(man.TestEqual() || (faild && loop_cnt == INERVEL))
+        {
+            winning = 1;
+            sensors.PrepareDisplayWinning();
+            winning_pause = 5;
+        }
+        
         
         System::paint();
         ++frames;

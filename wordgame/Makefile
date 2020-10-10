@@ -18,3 +18,8 @@ include $(SDK_DIR)/Makefile.rules
 
 stir:
 	stir -o assets.gen.h assets.lua
+
+sim:
+	siftulator wordgame.elf
+ins:
+	swiss install wordgame.elf

@@ -1,7 +1,7 @@
 from PIL import Image
 import os
 
-base = './'
+base = './w'
 prefix = 'resized_'
 for d in os.listdir(base):
     if os.path.isdir(os.path.join(base, d)):
@@ -12,5 +12,5 @@ for d in os.listdir(base):
         continue
     else:
         im = Image.open(os.path.join(base, d))
-        im = im.resize((128, 128))
+        im = im.resize((64, 128))
         im.save(os.path.join(base, prefix + d))
